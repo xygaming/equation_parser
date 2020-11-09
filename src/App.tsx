@@ -41,20 +41,41 @@ class App extends React.Component {
   parseEquation() {
     let equation:string = this.state.equation.replace(/ /g, '') as string;
     (document.getElementById("equation") as HTMLInputElement).value = equation;
+    equation = this.transformEquation(equation);
     const solution = this.PEMDAS(equation);
     (document.getElementById('solution') as HTMLDivElement).innerText = `${this.state.equation} = ${solution.toString()}`;
   }
-  PEMDAS(equation:string): number {
+    transformEquation(equation: string): string {
     // CHANGES '.#' WITH '0.#'
-    equation = equation.replace(/(?<!\d+)\./g, '0.');
+    equation = equation.replace(/(?<!\d)\./g, '0.');
     // CHANGES '-' WITH '+-' WHICH MAKES SUBTRACTION INTO ADDITION
-    equation = equation.replace(/(?<=[0-9])-/, '+-');
+    equation = equation.replace(/(?<=\d)-/, '+-');
     // CHANGES '/' WITH '*d' WHICH ALLOWS THE FLOW TO BE LEFT TO RIGHT!
-    equation = equation.replace(/(?<=[0-9])\//, '*d');
-    // RUNS UNTIL NO MORE OPERATIONS CAN BE MADE)
-    if (equation.match(/[()-+*/]/)) {
-      if (equation.match(/\((\d+(\p\d+)?([+-/*]?)){1,}\)|\((\d+(\p\d+)?([+-/*]?)){1,}$/g)) {
-        let Element: string = (equation.match(/\((\d+(\p\d+)?([+-/*]?)){1,}\)|\((\d+(\p\d+)?([+-/*]?)){1,}$/g) as Array<string>)[0]
+    equation = equation.replace(/(?<=\d)\//, '*d');
+    equation = this.transformExponents(equation);
+    return equation;
+  }
+  transformExponents(equation: string): string { // THIS IS SEPERATE FOR EXPONENT RULES!
+    // CHANGES #^# TO (#^#) FOR MATH REASONS
+    let closingParens: string[] | string = [];
+    if (equation.match(/(\d+\^)+\d+/g)) {
+      for (let i of equation.match(/(\d+\^)+\d+/g) as string[]) {
+        closingParens.push('');
+        for (let j of i.match(/\^/g) as string[]) {
+          closingParens[equation.indexOf(i)] += ')';
+        }
+      }
+    }
+    equation = equation.replace(/\d+(?=\^)/g, '($&');
+    for (let i = 0; i < closingParens.length; i++) {
+      equation = equation.replace(/((?<=\^)\d+)(?!^)/g, '$&' + closingParens[i]);
+    }
+    return equation;
+  }
+  PEMDAS(equation:string): number {
+    if (equation.match(/[()-+*^/]/)) {
+      if (equation.match(/\((\d+(\p\d+)?([+-^/*]?)){1,}\)|\((\d+(\p\d+)?([+-^/*]?)){1,}$/g)) {
+        let Element: string = (equation.match(/\((\d+(\p\d+)?([+-^/*]?)){1,}\)|\((\d+(\p\d+)?([+-^/*]?)){1,}$/g) as Array<string>)[0]
         console.log(Element);
         let inParen: string[] | string = Element.split('');
         // REMOVES PARENTHESIS TO SOLVE WHAT'S INSIDE
@@ -64,12 +85,12 @@ class App extends React.Component {
         }
         inParen = inParen.join('');
         // COMPLETES WHAT'S INSIDE OF PARENTHESIS
-        if (inParen.match(/[()-+/*]/g)) {
+        if (inParen.match(/[()-+/^*]/g)) {
           equation = equation.replace(inParen, (this.PEMDAS(inParen) as number).toString());
         }
         // DISCOVER PARENTHESIS TYPE (EARLY OPERATION OR MULTIPLICATION OR BOTH)
-        if (equation.match(/(?<![+-/*(])(\(\d+(\.\d+)?\))|(?<![+-/*(])(\(\d+(\.\d+)?)/g)) {
-          (equation.match(/(?<![+-/*(])(\(\d+(\.\d+)?\))|(?<![+-/*(])(\(\d+(\.\d+)?)/g) as string[]).forEach(Element => {
+        if (equation.match(/(?<![+-^/*(])(\(\d+(\.\d+)?\))|(?<![+-/^*(])(\(\d+(\.\d+)?)/g)) {
+          (equation.match(/(?<![+-^/*(])(\(\d+(\.\d+)?\))|(?<![+-/^*(])(\(\d+(\.\d+)?)/g) as string[]).forEach(Element => {
             let innerNum: string[] | number = Element.split('');
             innerNum.shift();
             if (innerNum[innerNum.length - 1] === ')') {
@@ -83,9 +104,21 @@ class App extends React.Component {
               equation = temp.join('');
             }
           })
-        } else {
-          equation = equation.replace(/[)(]/g, '');
         }
+        // Get's rid of the rest of the parenthesis
+        equation = equation.replace(/[)(]/g, '');
+        // This will reset parenthesis for exponents (cuz exponents suck)
+        equation = this.transformExponents(equation);
+        return this.PEMDAS(equation);
+      }
+      // EXPONENTS
+      if (equation.match(/(?:-?\d+(\.\d+)?\^-?\d+(\.\d+)?){1}/g)) {
+        let returnSol: number = 0;
+        let Element: string = (equation.match(/(?:-?\d+(\.\d+)?\^-?\d+(\.\d+)?){1}/g) as string[])[0];
+        let nums: string[] = Element.split('^');
+        returnSol = parseFloat(nums[0])**parseFloat(nums[1]);
+        equation = equation.replace(Element, returnSol.toString());
+        return this.PEMDAS(equation);
       }
       // MULTIPLICATION (AND DIVISION)
       if (equation.match(/(?:-?\d+(\.\d+)?\*d?-?\d+(\.\d+)?){1}/g)) {
@@ -143,6 +176,11 @@ export default App;
 
 /*
 CHANGELOG :
+  v1.2 11/8/2020 22:44 --
+    ADDED EXPONENTS
+    FIXED SOME INFINITE LOOP ISSUES
+    FIXED PARENTHESIS MESSING UP ISSUES
+
   v1.1 11/6/2020 19:07 --
     FIXED BUG WITH NESTED PARENTHESIS
     **WILL POST ON GIT SOON
