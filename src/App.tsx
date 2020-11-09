@@ -1,5 +1,5 @@
 // EQUATION PARSER MADE BY JOSH M (xygaming)
-// IF YOU PLAN ON USING MY SH***Y CODE, MAKE SURE TO READ THE MIT LISENCE!
+// IF YOU PLAN ON USING MY SH***Y CODE, MAKE SURE TO FOLLOW THE MIT LICENSE!
 // THIS IS DESIGNED TO COMPLETE ADDITION, SUBTRACTION, MULTIPLICATION, AND DIVISION
 // THE PURPOSE OF THIS PROJECT WAS TO UTILIZE REGEX IN A PROJECT
 // COPYRIGHT 2020
@@ -29,7 +29,7 @@ class App extends React.Component {
     })
   }
   isEquation() {
-    if (this.state.equation.match(/[^*+-/() 0123456789]/g)) {
+    if (this.state.equation.match(/[^*+\-^/() 01)23456789]/g) && !this.state.equation.match(/\b(sin|tan|cos|csc|sec|cot)\b\(.{1,}\)/)) {
        (document.getElementById("solution") as HTMLDivElement).innerText = 'Please only use the characters, "* - + ^ / ( )" for operations and "[0-9]" for digits.';
       return false
     } else if (!this.state.equation.trim().length) {
@@ -45,7 +45,7 @@ class App extends React.Component {
     const solution = this.PEMDAS(equation);
     (document.getElementById('solution') as HTMLDivElement).innerText = `${this.state.equation} = ${solution.toString()}`;
   }
-    transformEquation(equation: string): string {
+  transformEquation(equation: string): string {
     // CHANGES '.#' WITH '0.#'
     equation = equation.replace(/(?<!\d)\./g, '0.');
     // CHANGES '-' WITH '+-' WHICH MAKES SUBTRACTION INTO ADDITION
@@ -58,39 +58,40 @@ class App extends React.Component {
   transformExponents(equation: string): string { // THIS IS SEPERATE FOR EXPONENT RULES!
     // CHANGES #^# TO (#^#) FOR MATH REASONS
     let closingParens: string[] | string = [];
-    if (equation.match(/(\d+\^)+\d+/g)) {
-      for (let i of equation.match(/(\d+\^)+\d+/g) as string[]) {
-        closingParens.push('');
-        for (let j of i.match(/\^/g) as string[]) {
+    if (equation.match(/(\d+(\p\d+)?\^)+\d+(\p\d+)?/g)) {
+      for (let i of equation.match(/(\d+(\p\d+)?\^)+\d+(\p\d+)?/g) as string[]) {
+        closingParens.push(')');
+        for (let j = 0; j < (i.match(/\^/g) as string[]).length - 1; j++) {
           closingParens[equation.indexOf(i)] += ')';
         }
       }
     }
-    equation = equation.replace(/\d+(?=\^)/g, '($&');
+    equation = equation.replace(/\d+(\p\d+)?(?=\^)/g, '($&');
     for (let i = 0; i < closingParens.length; i++) {
-      equation = equation.replace(/((?<=\^)\d+)(?!^)/g, '$&' + closingParens[i]);
+      equation = equation.replace(/((?<=\^)\d+(\p\d+)?)(?!^)/g, '$&' + closingParens[i]);
     }
     return equation;
   }
-  PEMDAS(equation:string): number {
+  PEMDAS(equation: string): number {
+    // RUNS UNTIL NO MORE OPERATIONS CAN BE MADE)
     if (equation.match(/[()-+*^/]/)) {
-      if (equation.match(/\((\d+(\p\d+)?([+-^/*]?)){1,}\)|\((\d+(\p\d+)?([+-^/*]?)){1,}$/g)) {
-        let Element: string = (equation.match(/\((\d+(\p\d+)?([+-^/*]?)){1,}\)|\((\d+(\p\d+)?([+-^/*]?)){1,}$/g) as Array<string>)[0]
-        console.log(Element);
-        let inParen: string[] | string = Element.split('');
-        // REMOVES PARENTHESIS TO SOLVE WHAT'S INSIDE
-        inParen.shift();
-        if (inParen[inParen.length - 1] === ')') {
-          inParen.pop();
-        }
-        inParen = inParen.join('');
-        // COMPLETES WHAT'S INSIDE OF PARENTHESIS
-        if (inParen.match(/[()-+/^*]/g)) {
-          equation = equation.replace(inParen, (this.PEMDAS(inParen) as number).toString());
-        }
+      if (equation.match(/(\((\d+(\p\d+)?[-+*/^()]*?)\d+(\p\d+)?\))|(\((\d+(\p\d+)?[-+*/()]*?)\d+(\p\d+)?$)/g)) {
+        (equation.match(/(\((\d+(\p\d+)?[-+*/^()]*?)\d+(\p\d+)?\))|(\((\d+(\p\d+)?[-+*/()]*?)\d+(\p\d+)?$)/g) as Array<string>).forEach(Element => {
+          let inParen: string[] | string = Element.split('');
+          // REMOVES PARENTHESIS TO SOLVE WHAT'S INSIDE
+          inParen.shift();
+          if (inParen[inParen.length - 1] === ')') {
+            inParen.pop();
+          }
+          inParen = inParen.join('');
+          // COMPLETES WHAT'S INSIDE OF PARENTHESIS
+          if (inParen.match(/[()-+/^*]/g)) {
+            equation = equation.replace(inParen, this.PEMDAS(inParen).toString());
+          }
+        });
         // DISCOVER PARENTHESIS TYPE (EARLY OPERATION OR MULTIPLICATION OR BOTH)
-        if (equation.match(/(?<![+-^/*(])(\(\d+(\.\d+)?\))|(?<![+-/^*(])(\(\d+(\.\d+)?)/g)) {
-          (equation.match(/(?<![+-^/*(])(\(\d+(\.\d+)?\))|(?<![+-/^*(])(\(\d+(\.\d+)?)/g) as string[]).forEach(Element => {
+        if (equation.match(/(?<![-+*/^(])(\(-?\d+(\.\d+)?\))|(?<![+-/^*(])(\(-?\d+(\.\d+)?)/g)) {
+          (equation.match(/(?<![-+/*^(])(\(-?\d+(\.\d+)?\))|(?<![+-/^*(])(\(-?\d+(\.\d+)?)/g) as string[]).forEach(Element => {
             let innerNum: string[] | number = Element.split('');
             innerNum.shift();
             if (innerNum[innerNum.length - 1] === ')') {
@@ -107,7 +108,7 @@ class App extends React.Component {
         }
         // Get's rid of the rest of the parenthesis
         equation = equation.replace(/[)(]/g, '');
-        // This will reset parenthesis for exponents (cuz exponents suck) 
+        // This will reset parenthesis for exponents (cuz exponents suck)
         equation = this.transformExponents(equation);
         return this.PEMDAS(equation);
       }
@@ -133,7 +134,11 @@ class App extends React.Component {
         } else {
           returnSol *= parseFloat(nums[1]);
         }
-        equation = equation.replace(Element, returnSol.toString());
+        if (nums[0].split('')[0] === '-') {
+          equation = equation.replace(Element, '+' + returnSol.toString());
+        } else {
+          equation = equation.replace(Element, returnSol.toString());
+        }
         return this.PEMDAS(equation);
       }
       // ADDITION (AND SUBTRACTION)
@@ -176,6 +181,9 @@ export default App;
 
 /*
 CHANGELOG :
+  v1.3 11/9/2020 11:36 --
+    FIXED SOME REALLY MEAN PARENTHESIS BUGS :(
+
   v1.2 11/8/2020 22:44 --
     ADDED EXPONENTS
     FIXED SOME INFINITE LOOP ISSUES
