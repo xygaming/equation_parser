@@ -29,7 +29,7 @@ class App extends React.Component {
     })
   }
   isEquation() {
-    if (this.state.equation.match(/[^*-+/() 0123456789]/g)) {
+    if (this.state.equation.match(/[^*+-/() 0123456789]/g)) {
        (document.getElementById("solution") as HTMLDivElement).innerText = 'Please only use the characters, "* - + ^ / ( )" for operations and "[0-9]" for digits.';
       return false
     } else if (!this.state.equation.trim().length) {
