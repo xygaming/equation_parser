@@ -107,7 +107,7 @@ class App extends React.Component {
         }
         // Get's rid of the rest of the parenthesis
         equation = equation.replace(/[)(]/g, '');
-        // This will reset parenthesis for exponents (cuz exponents suck)
+        // This will reset parenthesis for exponents (cuz exponents suck) 
         equation = this.transformExponents(equation);
         return this.PEMDAS(equation);
       }
