@@ -1,9 +1,10 @@
-// EQUATION PARSER MADE BY JOSH M (xygaming)
+// EQUATION PARSER MADE BY JOSH M (github : xygaming)
 // IF YOU PLAN ON USING MY SH***Y CODE, MAKE SURE TO FOLLOW THE MIT LICENSE!
 // THIS IS DESIGNED TO COMPLETE ADDITION, SUBTRACTION, MULTIPLICATION, AND DIVISION
 // THE PURPOSE OF THIS PROJECT WAS TO UTILIZE REGEX IN A PROJECT
 // COPYRIGHT 2020
 
+// NOTE : AS OF TYPING THIS, VERY LITTLE REACT SYNTAX IS IN THE CODE
 import React from 'react';
 import './App.css';
 
@@ -29,8 +30,8 @@ class App extends React.Component {
     })
   }
   isEquation(equation = this.state.equation): boolean {
-    if (equation.match(/[^*+\-^/() 01)23456789]/g) && !equation.match(/\b(sin|tan|cos|csc|sec|cot)\b\(.{1,}\)/g)) {
-       (document.getElementById("solution") as HTMLDivElement).innerText = 'Please only use the characters, "* - + ^ / ( )" for operations and "[0-9]" for digits.';
+    if (equation.match(/[^*+-^/() 0123456789]/g) && !equation.match(/\b(sin|tan|cos|csc|sec|cot)\b\(.{1,}\)/g)) {
+      (document.getElementById("solution") as HTMLDivElement).innerText = 'Please only use the characters, "* - + ^ / ( )" or trig functions for operations and "[0-9]" for digits.';
       return false
     } else if (!equation.trim().length) {
       (document.getElementById("equation") as HTMLInputElement).value = '';
@@ -43,17 +44,19 @@ class App extends React.Component {
     (document.getElementById("equation") as HTMLInputElement).value = equation;
     equation = this.transformEquation(equation);
     const solution = this.PEMDAS(equation);
-    (document.getElementById('solution') as HTMLDivElement).innerText = `${this.state.equation} = ${solution.toString()}`;
+    if (!isNaN(solution)) {
+      (document.getElementById('solution') as HTMLDivElement).innerText = `${this.state.equation} = ${solution.toString()}`;
+    }
   }
   transformEquation(equation: string): string {
     // CHANGES '.#' WITH '0.#'
     equation = equation.replace(/(?<!\d|\))\./g, '0.');
     // CHANGES '-' WITH '+-' WHICH MAKES SUBTRACTION INTO ADDITION
-    equation = equation.replace(/(?<=\d|\))-/, '+-');
+    equation = equation.replace(/(?<=\d|\))-/g, '+-');
+    // PUTS ALL TRIG FUNCTIONS IN PARENTHESIS
+    equation = equation.replace(/\b(sin|tan|cos|csc|sec|cot)+?\b\(.*\){1,}/g, '($&)');
     // CHANGES '/' WITH '*d' WHICH ALLOWS THE FLOW TO BE LEFT TO RIGHT!
     equation = equation.replace(/(?<=\d|\))\//g, '*d');
-    // PUTS ALL TRIG FUNCTIONS IN PARENTHESIS
-    equation = equation.replace(/\b(sin|tan|cos|csc|sec|cot)*?\b\(\d+(\.\d+)?\){1,}/g, '($&)');
     // TRANSFORMS EXPONENTS (MIGHT DO AGAIN SO SEPERATE FUNCTION)
     equation = this.transformExponents(equation);
     return equation;
@@ -76,16 +79,24 @@ class App extends React.Component {
     return equation;
   }
   PEMDAS(equation: string): number {
+    if (equation === 'NaN') {
+      (document.getElementById("solution") as HTMLDivElement).innerText = 'Something went wrong, clear and try again!';
+      return NaN
+    }
+    if (equation.match(/^\(\d+(\.\d+)?\)$/g)) {return parseFloat((equation.match(/\d+(\.\d+)?/g) as string[])[0] as string)}
     // RUNS UNTIL NO MORE OPERATIONS CAN BE MADE)
-    if (equation.match(/[-+*/^()]/)) {
+    if (equation.match(/[-+*d^()]/)) {
       // SOLVE TIG FUNCTIONS
-      if (equation.match(/\b(sin|tan|cos|csc|sec|cot)*?\b\(\d+(\.\d+)?\){1,}/g)) {
-        (equation.match(/\b(sin|tan|cos|csc|sec|cot)*?\b\(\d+(\.\d+)?\){1,}/g)as string[]).forEach(Element => {
-          let tempCheck: string = Element.split('').slice(5,Element.length-2).join('');
-          if (tempCheck.match(/\b(sin|tan|cot|cos|csc|sec)\b\(.{1,}(?=\)*?)/g)) {
-            (tempCheck.match(/\b(sin|tan|cot|cos|csc|sec)\b\(.{1,}(?=\)*?)/g) as string[]).forEach(Element => {
-              equation = equation.replace(Element, this.PEMDAS(Element).toString());
-            })
+      if (equation.match(/\b(sin|tan|cos|csc|sec|cot)+?\b\(.*\)/g)) {
+        (equation.match(/\b(sin|tan|cos|csc|sec|cot)+?\b\(.*\)/g)as string[]).forEach(Element => {
+          let tempCheck: string = Element.split('').slice(4, Element.length - Element.split('').reverse().indexOf(')')-2).join('');
+          while (tempCheck.split('')[tempCheck.length - 1] === ')') {
+            tempCheck = tempCheck.split('').slice(0, tempCheck.length - 1).join('');
+          }
+          if (this.isEquation(tempCheck)) {
+            equation = equation.replace(tempCheck, this.PEMDAS(tempCheck).toString());
+          } else {
+            equation = 'NaN';
           }
         });
         (equation.match(/\b(sin|tan|cot|cos|csc|sec)\b\(\d+(\.\d+)?\)/g))?.forEach(Element => {
@@ -116,8 +127,8 @@ class App extends React.Component {
         return this.PEMDAS(equation);
       }
       // PARENTHESIS CHECKER
-      if (equation.match(/(\((\d+(\.\d+)?[-+*/^()]*?)\d+(\.\d+)?\))|(\((\d+(\.\d+)?[-+*/()]*?)\d+(\.\d+)?$)/g)) {
-        (equation.match(/(\((\d+(\.\d+)?[-+*/^()]*?)\d+(\.\d+)?\))|(\((\d+(\.\d+)?[-+*/()]*?)\d+(\.\d+)?$)/g) as Array<string>).forEach(Element => {
+      if (equation.match(/(\((\d+(\.\d+)?[-+*d^()]*?)\d+(\.\d+)?\))|(\((\d+(\.\d+)?[-+*d()]*?)\d+(\.\d+)?$)/g)) {
+        (equation.match(/(\((\d+(\.\d+)?[-+*d^()]*?)\d+(\.\d+)?\))|(\((\d+(\.\d+)?[-+*d()]*?)\d+(\.\d+)?$)/g) as Array<string>).forEach(Element => {
           let inParen: string[] | string = Element.split('');
           // REMOVES PARENTHESIS TO SOLVE WHAT'S INSIDE
           inParen.shift();
@@ -126,13 +137,13 @@ class App extends React.Component {
           }
           inParen = inParen.join('');
           // COMPLETES WHAT'S INSIDE OF PARENTHESIS
-          if (inParen.match(/[()-+/^*]/g)) {
+        if (inParen.match(/[-+*d^()]/g)) {
             equation = equation.replace(inParen, this.PEMDAS(inParen).toString());
           }
         });
         // DISCOVER PARENTHESIS TYPE (EARLY OPERATION OR MULTIPLICATION OR BOTH)
-        if (equation.match(/(?<![-+*/^(])(\(-?\d+(\.\d+)?\))|(?<![+-/^*(])(\(-?\d+(\.\d+)?)/g)) {
-          (equation.match(/(?<![-+/*^(])(\(-?\d+(\.\d+)?\))|(?<![+-/^*(])(\(-?\d+(\.\d+)?)/g) as string[]).forEach(Element => {
+        if (equation.match(/(?<![-+*^(d])(\(-?\d+(\.\d+)?\))|(?<![+-/^*(d])(\(-?\d+(\.\d+)?)/g)) {
+          (equation.match(/(?<![-+/*^(d])(\(-?\d+(\.\d+)?\))|(?<![+-/^*(d])(\(-?\d+(\.\d+)?)/g) as string[]).forEach(Element => {
             let innerNum: string[] | number = Element.split('');
             innerNum.shift();
             if (innerNum[innerNum.length - 1] === ')') {
@@ -183,10 +194,10 @@ class App extends React.Component {
         return this.PEMDAS(equation);
       }
       // ADDITION (AND SUBTRACTION)
-      if (equation.match(/(?:-?\d+(\.\d+)?\+-?\d+(\.\d+)?)/g)) {
+      if (equation.match(/(?:-?\d+(\.\d+)?\++-?\d+(\.\d+)?)/g)) {
         let returnSol: number = 0;
-        let Element: string = (equation.match(/-?\d+(\.\d+)?\+-?\d+(\.\d+)?/g) as Array<string>)[0]
-        let add: string[] = Element.split('+');
+        let Element: string = (equation.match(/-?\d+(\.\d+)?\++-?\d+(\.\d+)?/g) as Array<string>)[0]
+        let add: string[] = Element.split(/\++/);
         returnSol = parseFloat(add[0]) + parseFloat(add[1]);
         equation = equation.replace(Element, returnSol.toString());
         return this.PEMDAS(equation)
@@ -226,6 +237,17 @@ export default App;
 
 /*
 CHANGELOG :
+  v1.42 11/11/2020 15:03 --
+    FIXED BREAKING IF TRIG FUNCTION IS WRONG
+    GOT WIFI BACK YAY
+
+  v1.4  11/10/2020 23:56 --
+    FIXED BUG WITH DOUBLE ADDITION SIGNS BEING CAUSED BY MULTIPLICATION
+    WOW AM I BAD AT REGEX + TRIG LOL === FIXED MORE TRIG BUGS
+    FIXED A MAJOR DIVISION BUG
+      I HAD IT CHECKING FOR '[*.../]' [ignore ellipse] WHERE DIVISION IS SEEN AS '[*d]'
+    CREATOR NOTE : I HAVE NO WIFI SO THE COMMIT WILL BE REALLY AFTER THIS TIMESTAMP
+
   v1.3 11/9/2020 16:27 --
     WOAH THERE BUGS, WASSUP?
     FIXED WAYYY TOO MANY BUGS THAT SEEMED TO BE MISSED BEFORE
